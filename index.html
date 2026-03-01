@@ -1,0 +1,1720 @@
+<!doctype html>
+<html lang="id" class="h-full">
+ <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Unread Messages From Her</title>
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <script src="/_sdk/element_sdk.js"></script>
+  <script src="/_sdk/data_sdk.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet">
+  <style>
+    * { font-family: 'Noto Sans', sans-serif; }
+    
+    @keyframes bootFlicker {
+      0%, 100% { opacity: 0; }
+      10% { opacity: 0.1; }
+      20% { opacity: 0.3; }
+      40% { opacity: 0.2; }
+      60% { opacity: 0.5; }
+      80% { opacity: 0.4; }
+      100% { opacity: 1; }
+    }
+    
+    @keyframes glitch {
+      0% { transform: translate(0); filter: hue-rotate(0deg); }
+      10% { transform: translate(-2px, 2px); filter: hue-rotate(90deg); }
+      20% { transform: translate(2px, -2px); filter: hue-rotate(180deg); }
+      30% { transform: translate(-2px, -2px); filter: hue-rotate(270deg); }
+      40% { transform: translate(2px, 2px); filter: hue-rotate(0deg); }
+      50% { transform: translate(0); }
+      100% { transform: translate(0); }
+    }
+    
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    
+    @keyframes slideUp {
+      from { transform: translateY(20px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+    
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+    
+    @keyframes typing {
+      from { width: 0; }
+      to { width: 100%; }
+    }
+    
+    .boot-flicker { animation: bootFlicker 3s ease-out forwards; }
+    .glitch-effect { animation: glitch 0.5s ease-in-out; }
+    .fade-in { animation: fadeIn 0.5s ease-out forwards; }
+    .slide-up { animation: slideUp 0.4s ease-out forwards; }
+    .pulse-anim { animation: pulse 2s infinite; }
+    
+    .phone-frame {
+      background: linear-gradient(145deg, #1a1a2e 0%, #0f0f1a 100%);
+      box-shadow: 
+        0 0 0 3px #2d2d44,
+        0 0 0 6px #1a1a2e,
+        0 25px 50px -12px rgba(0, 0, 0, 0.8),
+        inset 0 1px 0 rgba(255,255,255,0.1);
+    }
+    
+    .screen-glow {
+      box-shadow: 
+        inset 0 0 30px rgba(59, 130, 246, 0.1),
+        0 0 20px rgba(59, 130, 246, 0.05);
+    }
+    
+    .app-icon {
+      transition: all 0.2s ease;
+    }
+    .app-icon:hover:not(.locked) {
+      transform: scale(1.1);
+    }
+    .app-icon.locked {
+      filter: grayscale(1) brightness(0.5);
+      cursor: not-allowed;
+    }
+    
+    .chat-bubble {
+      max-width: 80%;
+      word-wrap: break-word;
+    }
+    
+    .deleted-msg {
+      background: repeating-linear-gradient(
+        45deg,
+        transparent,
+        transparent 2px,
+        rgba(255,255,255,0.03) 2px,
+        rgba(255,255,255,0.03) 4px
+      );
+    }
+    
+    .notification-badge {
+      animation: pulse 1.5s infinite;
+    }
+    
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 2px; }
+    
+    .choice-btn {
+      transition: all 0.3s ease;
+    }
+    .choice-btn:hover {
+      transform: translateX(5px);
+      background: rgba(59, 130, 246, 0.3);
+    }
+    
+    .memory-overlay {
+      background: radial-gradient(ellipse at center, rgba(255,200,150,0.1) 0%, transparent 70%);
+    }
+  </style>
+  <style>body { box-sizing: border-box; }</style>
+ </head>
+ <body class="h-full bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950 overflow-auto">
+  <div id="app" class="w-full min-h-full flex items-center justify-center p-4"><!-- Phone Container -->
+   <div class="phone-frame rounded-[2.5rem] p-3 w-full max-w-[380px]">
+    <div id="phone-screen" class="bg-black rounded-[2rem] overflow-hidden screen-glow relative" style="aspect-ratio: 9/19;"><!-- Dynamic Notch -->
+     <div class="absolute top-0 left-1/2 -translate-x-1/2 w-28 h-7 bg-black rounded-b-2xl z-50 flex items-center justify-center">
+      <div class="w-2 h-2 rounded-full bg-slate-800"></div>
+     </div><!-- Screen Content -->
+     <div id="screen-content" class="w-full h-full overflow-hidden"><!-- Content will be injected here -->
+     </div>
+    </div>
+   </div>
+  </div>
+  <script>
+    // ==================== GAME STATE ====================
+    const defaultConfig = {
+      game_title: "Unread Messages From Her",
+      subtitle: "Kadang satu kata bisa mengubah semuanya.",
+      primary_color: "#1e293b",
+      accent_color: "#3b82f6",
+      text_color: "#f1f5f9",
+      surface_color: "#1e1e2e",
+      warm_color: "#fbbf24"
+    };
+    
+    let gameState = {
+      currentScene: 'boot',
+      unlockedApps: ['settings'],
+      choicesMade: [],
+      goodChoices: 0,
+      badChoices: 0,
+      settingsComplete: false,
+      calendarComplete: false,
+      emailComplete: false,
+      galleryComplete: false,
+      voiceNoteComplete: false,
+      inRelapse: false,
+      relapseIndex: 0,
+      ending: null
+    };
+    
+    let currentSaveData = null;
+    
+    // ==================== STORY DATA ====================
+    const relapseScenarios = [
+      {
+        context: "Aini baru pulang kerja, terlihat lelah...",
+        message: "Hari ini capek banget... kamu lagi ngapain?",
+        choices: [
+          { text: "Istirahat dulu ya sayang, aku bikinin teh 🍵", type: "good" },
+          { text: "Iya aku juga capek", type: "bad" },
+          { text: "Kenapa sih selalu ngeluh?", type: "bad" },
+          { text: "Cerita dong, aku dengerin ☺️", type: "good" }
+        ]
+      },
+      {
+        context: "Kalian sedang bertengkar soal waktu...",
+        message: "Kamu tuh selalu sibuk, aku kapan?",
+        choices: [
+          { text: "Maaf ya, besok kita quality time yuk", type: "good" },
+          { text: "Kamu juga sibuk kan?", type: "bad" },
+          { text: "Aku kerja buat kita juga", type: "bad" },
+          { text: "Kamu bener, aku mau berubah", type: "good" }
+        ]
+      },
+      {
+        context: "Aini lagi sedih karena masalah keluarga...",
+        message: "Kadang aku ngerasa sendirian...",
+        choices: [
+          { text: "Ada aku di sini, selalu 💕", type: "good" },
+          { text: "Kamu lebay deh", type: "bad" },
+          { text: "Mau aku temenin? Kita ngobrol yuk", type: "good" },
+          { text: "*tidak membalas*", type: "bad" }
+        ]
+      },
+      {
+        context: "Anniversary pertama kalian...",
+        message: "Sayang, makasih ya udah setahun bareng aku ❤️",
+        choices: [
+          { text: "Terima kasih juga udah sabar sama aku 💕", type: "good" },
+          { text: "Iya sama-sama", type: "bad" },
+          { text: "Aku yang harusnya berterima kasih, love you!", type: "good" },
+          { text: "Oh iya, lupa tadi", type: "bad" }
+        ]
+      },
+      {
+        context: "Aini nanya tentang masa depan...",
+        message: "Kamu serius ga sih sama hubungan kita?",
+        choices: [
+          { text: "Serius banget, aku udah planning masa depan kita", type: "good" },
+          { text: "Kenapa nanya gitu?", type: "bad" },
+          { text: "Aku sayang kamu, dan aku mau ini selamanya", type: "good" },
+          { text: "Gatau, lihat nanti aja", type: "bad" }
+        ]
+      }
+    ];
+    
+    const chatHistory = {
+      sweet: [
+        { from: "aini", text: "Sayang~ 💕", time: "08:15" },
+        { from: "me", text: "Iya sayangku?", time: "08:16" },
+        { from: "aini", text: "Aku kangen...", time: "08:16" },
+        { from: "me", text: "Aku juga kangen banget 🥺", time: "08:17" },
+        { from: "aini", text: "Jangan tinggalin aku ya...", time: "08:20" },
+        { from: "me", text: "Ga akan pernah ❤️", time: "08:21" },
+        { from: "aini", text: "Janji?", time: "08:21" },
+        { from: "me", text: "Janji, selamanya", time: "08:22" },
+        { from: "aini", text: "Aku sayang kamu... lebih dari apapun", time: "08:25" },
+      ],
+      bitter: [
+        { from: "aini", text: "Kamu kenapa sih akhir-akhir ini?", time: "21:30" },
+        { from: "me", text: "Apanya?", time: "21:45" },
+        { from: "aini", text: "Itu... balesnya lama banget", time: "21:46" },
+        { from: "aini", text: "Aku capek...", time: "22:10" },
+        { from: "me", text: "Capek kenapa?", time: "22:30" },
+        { from: "aini", text: "Capek nunggu. Capek berharap.", time: "22:31" },
+        { from: "aini", text: "Kamu berubah...", time: "22:35" },
+        { from: "me", text: "...", time: "22:50" },
+        { from: "aini", text: "Aku gabisa terus kayak gini", time: "23:00" },
+      ],
+      final: [
+        { from: "aini", text: "Mungkin kita butuh waktu...", time: "23:30" },
+        { from: "me", text: "Maksudnya?", time: "23:31" },
+        { from: "aini", text: "Kamu tau maksudku", time: "23:32" },
+        { from: "aini", text: "Selamat tinggal...", time: "23:45" },
+        { from: "deleted", text: "Pesan ini telah dihapus", time: "23:46" },
+      ]
+    };
+    
+    // ==================== RENDER FUNCTIONS ====================
+    
+    function renderBootScreen() {
+      const content = document.getElementById('screen-content');
+      content.innerHTML = `
+        <div class="w-full h-full bg-black flex flex-col items-center justify-center boot-flicker">
+          <div class="text-6xl mb-4">📱</div>
+          <div class="text-slate-500 text-sm">Memulai...</div>
+          <div class="mt-8 w-32 h-1 bg-slate-800 rounded overflow-hidden">
+            <div class="h-full bg-blue-500 animate-pulse" style="width: 0%; animation: loadBar 2.5s ease-out forwards;"></div>
+          </div>
+        </div>
+        <style>
+          @keyframes loadBar {
+            0% { width: 0%; }
+            100% { width: 100%; }
+          }
+        </style>
+      `;
+      
+      setTimeout(() => renderLockScreen(), 3000);
+    }
+    
+    function renderLockScreen() {
+      gameState.currentScene = 'lockscreen';
+      const content = document.getElementById('screen-content');
+      const isGoodEnding = gameState.ending === 'good';
+      
+      content.innerHTML = `
+        <div class="w-full h-full bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 flex flex-col items-center pt-12 fade-in relative overflow-hidden">
+          <!-- Background Stars -->
+          <div class="absolute inset-0 opacity-30">
+            ${Array(20).fill().map(() => `
+              <div class="absolute w-1 h-1 bg-white rounded-full" style="left: ${Math.random()*100}%; top: ${Math.random()*100}%; opacity: ${Math.random()}"></div>
+            `).join('')}
+          </div>
+          
+          <!-- Time -->
+          <div class="text-white text-5xl font-light mb-2">23:58</div>
+          <div class="text-slate-400 text-lg mb-1">📅 1 Januari 2027</div>
+          <div class="text-slate-500 text-xs mb-8 italic">1 tahun sejak pertama kali kamu bilang iya</div>
+          
+          <!-- Notification -->
+          <div class="bg-slate-800/60 backdrop-blur rounded-2xl p-4 mx-6 mb-8 w-[calc(100%-3rem)] slide-up" style="animation-delay: 0.3s;">
+            <div class="flex items-center gap-3">
+              <div class="text-2xl">${isGoodEnding ? '💒' : '📅'}</div>
+              <div class="flex-1">
+                <div class="text-white text-sm font-medium">Calendar</div>
+                <div class="text-slate-300 text-xs">${isGoodEnding ? 'Pernikahan kita ❤️' : 'Hari ini harusnya 1 tahun kita…'}</div>
+              </div>
+              ${!isGoodEnding ? '<div class="text-blue-400 text-xs font-mono notification-badge">01012026</div>' : ''}
+            </div>
+          </div>
+          
+          ${isGoodEnding ? `
+            <div class="text-center text-slate-300 text-sm px-6 mb-8 fade-in" style="animation-delay: 0.5s;">
+              Selamat pagi, suamiku ❤️
+            </div>
+            <button onclick="renderGoodEndingHome()" class="bg-blue-500 text-white px-8 py-3 rounded-full font-medium slide-up" style="animation-delay: 0.7s;">
+              Buka HP
+            </button>
+          ` : `
+            <!-- Passcode -->
+            <div class="flex-1 flex flex-col items-center justify-center relative z-20">
+              <div class="text-slate-400 text-sm mb-4">Masukkan Passcode</div>
+              <div class="flex gap-3 mb-8">
+                ${Array(5).fill().map((_, i) => `
+                  <div id="dot-${i}" class="w-3 h-3 rounded-full bg-slate-600 transition-all"></div>
+                `).join('')}
+              </div>
+              
+              <!-- Numpad Grid -->
+              <div id="numpad-grid" class="grid grid-cols-3 gap-4 mb-8">
+                ${[1,2,3,4,5,6,7,8,9].map(n => `
+                  <button type="button" data-key="${n}" class="numpad-btn w-16 h-16 rounded-full bg-slate-700/50 hover:bg-slate-600 text-white text-xl font-light transition-all active:scale-95 relative z-20">
+                    ${n}
+                  </button>
+                `).join('')}
+              </div>
+              
+              <!-- Bottom row with 0 and delete -->
+              <div class="grid grid-cols-3 gap-4 w-full relative z-20">
+                <div></div>
+                <button type="button" data-key="0" class="numpad-btn w-16 h-16 rounded-full bg-slate-700/50 hover:bg-slate-600 text-white text-xl font-light transition-all active:scale-95">
+                  0
+                </button>
+                <button type="button" data-key="⌫" class="numpad-btn w-16 h-16 rounded-full bg-red-900/50 hover:bg-red-800/50 text-white text-xl font-light transition-all active:scale-95">
+                  ⌫
+                </button>
+              </div>
+            </div>
+            
+            <div class="text-slate-500 text-xs mb-8 text-center px-4">
+              💡 Petunjuk: DDMMYYYY (tanggal anniversary kita)
+            </div>
+          `}
+        </div>
+      `;
+      
+      // Attach event listeners to numpad buttons
+      if (!isGoodEnding) {
+        setTimeout(() => {
+          const buttons = document.querySelectorAll('.numpad-btn');
+          buttons.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+              e.preventDefault();
+              const key = btn.getAttribute('data-key');
+              pressKey(key);
+            });
+          });
+        }, 0);
+      }
+    }
+    
+    let currentPasscode = '';
+    
+    function pressKey(key) {
+      if (key === '⌫') {
+        currentPasscode = currentPasscode.slice(0, -1);
+      } else if (key !== '' && currentPasscode.length < 8) {
+        currentPasscode += key;
+      }
+      updatePasscodeDots();
+      if (currentPasscode.length === 6 || currentPasscode.length === 8) {
+        setTimeout(() => handlePasscode(currentPasscode), 300);
+      }
+    }
+    
+    function updatePasscodeDots() {
+      for (let i = 0; i < 5; i++) {
+        const dot = document.getElementById(`dot-${i}`);
+        if (dot) {
+          dot.className = `w-3 h-3 rounded-full transition-all ${i < currentPasscode.length ? 'bg-blue-500' : 'bg-slate-600'}`;
+        }
+      }
+    }
+    
+    function handlePasscode(value) {
+      if (value === '010126' || value === '01012026') {
+        currentPasscode = '';
+        showTransition('Hmm... mungkin aku bisa ngatur sesuatu dulu...', () => {
+          gameState.currentScene = 'home';
+          renderHomeScreen();
+        });
+      } else if (value.length === 6 || value.length === 8) {
+        // Wrong passcode shake
+        const dots = document.querySelectorAll('[id^="dot-"]');
+        dots.forEach(dot => {
+          dot.classList.add('bg-red-500');
+          dot.style.animation = 'shake 0.5s ease';
+        });
+        setTimeout(() => {
+          currentPasscode = '';
+          updatePasscodeDots();
+        }, 500);
+      }
+    }
+    
+    function showTransition(text, callback, duration = 2000) {
+      const content = document.getElementById('screen-content');
+      content.innerHTML = `
+        <div class="w-full h-full bg-black flex items-center justify-center p-6 fade-in">
+          <p class="text-slate-400 text-center text-sm italic">"${text}"</p>
+        </div>
+      `;
+      setTimeout(callback, duration);
+    }
+    
+    function renderHomeScreen() {
+      gameState.currentScene = 'home';
+      const content = document.getElementById('screen-content');
+      
+      const apps = [
+        { id: 'settings', icon: '⚙️', name: 'Settings', unlocked: true },
+        { id: 'calendar', icon: '📅', name: 'Calendar', unlocked: gameState.settingsComplete },
+        { id: 'email', icon: '📧', name: 'Email', unlocked: gameState.calendarComplete },
+        { id: 'gallery', icon: '🖼️', name: 'Gallery', unlocked: gameState.emailComplete },
+        { id: 'voicenote', icon: '🎤', name: 'Voice Note', unlocked: gameState.galleryComplete },
+        { id: 'chat', icon: '💬', name: 'Chat', unlocked: gameState.voiceNoteComplete },
+      ];
+      
+      content.innerHTML = `
+        <div class="w-full h-full bg-gradient-to-b from-indigo-950 via-slate-900 to-slate-950 p-6 pt-10 fade-in relative overflow-hidden">
+          <!-- Wallpaper overlay -->
+          <div class="absolute inset-0 opacity-10" style="background: url('data:image/svg+xml,<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 100 100\"><circle cx=\"50\" cy=\"50\" r=\"40\" fill=\"none\" stroke=\"white\" stroke-width=\"0.5\"/></svg>') center/cover;"></div>
+          
+          <!-- Status Bar -->
+          <div class="flex justify-between items-center mb-8 relative z-10">
+            <span class="text-white text-sm">23:59</span>
+            <div class="flex gap-1">
+              <span class="text-white text-xs">📶</span>
+              <span class="text-white text-xs">🔋</span>
+            </div>
+          </div>
+          
+          <!-- App Grid -->
+          <div class="grid grid-cols-3 gap-6 relative z-10">
+            ${apps.map((app, i) => `
+              <div class="app-icon flex flex-col items-center gap-2 ${app.unlocked ? 'cursor-pointer' : 'locked'} slide-up" 
+                   style="animation-delay: ${i * 0.1}s;"
+                   onclick="${app.unlocked ? `openApp('${app.id}')` : ''}">
+                <div class="w-14 h-14 rounded-2xl bg-slate-800/60 backdrop-blur flex items-center justify-center text-2xl relative ${app.unlocked ? 'shadow-lg' : ''}">
+                  ${app.icon}
+                  ${!app.unlocked ? '<div class="absolute inset-0 rounded-2xl bg-black/50 flex items-center justify-center">🔒</div>' : ''}
+                  ${app.id === 'chat' && app.unlocked ? '<div class="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full text-[10px] text-white flex items-center justify-center notification-badge">5</div>' : ''}
+                </div>
+                <span class="text-white text-xs ${app.unlocked ? '' : 'text-slate-500'}">${app.name}</span>
+              </div>
+            `).join('')}
+          </div>
+          
+          <!-- Dock -->
+          <div class="absolute bottom-6 left-1/2 -translate-x-1/2 bg-slate-800/40 backdrop-blur rounded-3xl px-6 py-3">
+            <div class="flex gap-6">
+              <div class="text-2xl">📞</div>
+              <div class="text-2xl">💬</div>
+              <div class="text-2xl">📷</div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+    
+    function openApp(appId) {
+      switch(appId) {
+        case 'settings': renderSettings(); break;
+        case 'calendar': renderCalendar(); break;
+        case 'email': renderEmail(); break;
+        case 'gallery': renderGallery(); break;
+        case 'voicenote': renderVoiceNote(); break;
+        case 'chat': renderChatList(); break;
+      }
+    }
+    
+    function renderSettings() {
+      gameState.currentScene = 'settings';
+      const content = document.getElementById('screen-content');
+      
+      content.innerHTML = `
+        <div class="w-full h-full bg-slate-900 flex flex-col fade-in">
+          <!-- Header -->
+          <div class="bg-slate-800 px-4 py-3 flex items-center gap-3 pt-10">
+            <button onclick="renderHomeScreen()" class="text-blue-400">← Kembali</button>
+            <span class="text-white font-medium flex-1 text-center">Settings</span>
+          </div>
+          
+          <!-- Settings List -->
+          <div class="flex-1 overflow-auto p-4 space-y-4">
+            <!-- Wallpaper -->
+            <div class="bg-slate-800 rounded-xl p-4">
+              <div class="flex items-center justify-between mb-3">
+                <span class="text-white">🖼️ Wallpaper</span>
+                <span id="wp-status" class="text-xs ${gameState.wallpaperSet ? 'text-green-400' : 'text-slate-400'}">${gameState.wallpaperSet ? '✓ Selesai' : 'Pilih'}</span>
+              </div>
+              <div class="grid grid-cols-3 gap-2">
+                ${['🌅', '🌃', '📸'].map((wp, i) => `
+                  <button onclick="selectWallpaper(${i})" class="h-16 rounded-lg bg-slate-700 flex items-center justify-center text-2xl hover:ring-2 hover:ring-blue-500 transition-all">
+                    ${wp}
+                  </button>
+                `).join('')}
+              </div>
+              ${!gameState.wallpaperSet ? '' : `
+                <div class="mt-3 bg-slate-700/50 rounded-lg p-3 text-center">
+                  <div class="text-4xl mb-2">📸</div>
+                  <p class="text-slate-300 text-xs italic">"Foto kita di Skyview Café..."</p>
+                </div>
+              `}
+            </div>
+            
+            <!-- Brightness -->
+            <div class="bg-slate-800 rounded-xl p-4">
+              <div class="flex items-center justify-between mb-3">
+                <span class="text-white">☀️ Brightness</span>
+                <span id="br-status" class="text-xs ${gameState.brightnessSet ? 'text-green-400' : 'text-slate-400'}">${gameState.brightnessSet ? '✓ Selesai' : 'Atur'}</span>
+              </div>
+              <input type="range" id="brightness-slider" min="0" max="100" value="${gameState.brightnessSet ? 70 : 30}"
+                class="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer"
+                onchange="setBrightness(this.value)">
+            </div>
+            
+            <!-- Ringtone -->
+            <div class="bg-slate-800 rounded-xl p-4">
+              <div class="flex items-center justify-between mb-3">
+                <span class="text-white">🔔 Ringtone</span>
+                <span id="rt-status" class="text-xs ${gameState.ringtoneSet ? 'text-green-400' : 'text-slate-400'}">${gameState.ringtoneSet ? '✓ Selesai' : 'Pilih'}</span>
+              </div>
+              <div class="space-y-2">
+                ${['🎵 Default', '🎹 Piano Melody', '🎸 Soft Guitar'].map((rt, i) => `
+                  <button onclick="selectRingtone(${i})" class="w-full text-left px-4 py-2 rounded-lg bg-slate-700 text-white text-sm hover:bg-slate-600 transition-all">
+                    ${rt}
+                  </button>
+                `).join('')}
+              </div>
+            </div>
+          </div>
+          
+          <!-- Complete Button -->
+          <div class="p-4">
+            <button onclick="completeSettings()" 
+              class="w-full py-3 rounded-xl font-medium transition-all ${gameState.wallpaperSet && gameState.brightnessSet && gameState.ringtoneSet ? 'bg-blue-500 text-white' : 'bg-slate-700 text-slate-400 cursor-not-allowed'}"
+              ${gameState.wallpaperSet && gameState.brightnessSet && gameState.ringtoneSet ? '' : 'disabled'}>
+              ${gameState.settingsComplete ? '✓ Selesai' : 'Simpan Pengaturan'}
+            </button>
+          </div>
+        </div>
+      `;
+    }
+    
+    function selectWallpaper(index) {
+      gameState.wallpaperSet = true;
+      if (index === 2) {
+        showTransition('Foto ini... Skyview Café. First date kita...', renderSettings, 2500);
+      } else {
+        renderSettings();
+      }
+    }
+    
+    function setBrightness(value) {
+      if (value >= 50) {
+        gameState.brightnessSet = true;
+        renderSettings();
+      }
+    }
+    
+    function selectRingtone(index) {
+      gameState.ringtoneSet = true;
+      if (index === 1) {
+        showTransition('Lagu ini... dia suka banget...', renderSettings, 2000);
+      } else {
+        renderSettings();
+      }
+    }
+    
+    function completeSettings() {
+      if (gameState.wallpaperSet && gameState.brightnessSet && gameState.ringtoneSet) {
+        gameState.settingsComplete = true;
+        showTransition('Calendar sekarang bisa dibuka...', renderHomeScreen);
+        saveGame();
+      }
+    }
+    
+    function renderCalendar() {
+      gameState.currentScene = 'calendar';
+      const content = document.getElementById('screen-content');
+      
+      const events = [
+        { date: '1 Jan 2026', title: 'Awal Hubungan 💕', highlight: true },
+        { date: '14 Feb 2026', title: "Valentine's Day 💕" },
+        { date: '27 Jul 2026', title: 'Ulang Tahun Aini 🎂', important: true },
+        { date: '15 Sep 2026', title: 'First Date 🌅' },
+        { date: '3 Nov 2026', title: 'First Fight 😢' },
+        { date: '31 Dec 2026', title: 'Draft Email Ditulis 💌' },
+        { date: '1 Jan 2027', title: '1 Tahun Bersama ❤️', highlight: true },
+      ];
+      
+      content.innerHTML = `
+        <div class="w-full h-full bg-slate-900 flex flex-col fade-in">
+          <!-- Header -->
+          <div class="bg-slate-800 px-4 py-3 flex items-center gap-3 pt-10">
+            <button onclick="renderHomeScreen()" class="text-blue-400">← Kembali</button>
+            <span class="text-white font-medium flex-1 text-center">📅 Calendar</span>
+          </div>
+          
+          <!-- Calendar View -->
+          <div class="flex-1 overflow-auto p-4">
+            <div class="text-white text-lg font-medium mb-4">Timeline Kita</div>
+            
+            <!-- Events -->
+            <div class="space-y-3">
+              <div class="text-slate-400 text-sm mb-2">Momen Penting</div>
+              ${events.map(e => `
+                <div class="bg-slate-800 rounded-xl p-4 ${e.highlight ? 'ring-2 ring-red-500' : ''} ${e.important ? 'ring-2 ring-amber-500' : ''}">
+                  <div class="flex items-center gap-3">
+                    <div class="text-2xl">${e.highlight ? '💕' : e.important ? '🎂' : '📌'}</div>
+                    <div>
+                      <div class="text-white font-medium">${e.title}</div>
+                      <div class="text-slate-400 text-sm">${e.date}</div>
+                    </div>
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+          
+          <!-- Question -->
+          ${!gameState.calendarComplete ? `
+            <div class="p-4 bg-slate-800 border-t border-slate-700">
+              <p class="text-white text-sm mb-3 text-center">🎂 Ulang tahun Aini kapan?</p>
+              <div class="grid grid-cols-2 gap-2">
+                ${['14 Februari', '27 Juli', '1 Januari', '15 September'].map(date => `
+                  <button onclick="answerCalendar('${date}')" 
+                    class="py-2 px-4 rounded-lg bg-slate-700 text-white text-sm hover:bg-blue-500 transition-all">
+                    ${date}
+                  </button>
+                `).join('')}
+              </div>
+            </div>
+          ` : `
+            <div class="p-4 bg-green-900/30 border-t border-green-800">
+              <p class="text-green-400 text-sm text-center">✓ Email sekarang bisa dibuka</p>
+            </div>
+          `}
+        </div>
+      `;
+    }
+    
+    function answerCalendar(answer) {
+      if (answer === '27 Juli') {
+        gameState.calendarComplete = true;
+        showTransition('27 Juli 2026... hari spesial Aini. Tapi sekarang 1 Januari 2027...', renderHomeScreen);
+        saveGame();
+      } else {
+        showTransition('Bukan... coba ingat lagi...', renderCalendar, 1500);
+      }
+    }
+    
+    function renderEmail() {
+      gameState.currentScene = 'email';
+      const content = document.getElementById('screen-content');
+      
+      content.innerHTML = `
+        <div class="w-full h-full bg-slate-900 flex flex-col fade-in">
+          <!-- Header -->
+          <div class="bg-slate-800 px-4 py-3 flex items-center gap-3 pt-10">
+            <button onclick="renderHomeScreen()" class="text-blue-400">← Kembali</button>
+            <span class="text-white font-medium flex-1 text-center">📧 Email</span>
+          </div>
+          
+          <div class="flex-1 overflow-auto p-4">
+            <!-- Drafts -->
+            <div class="text-slate-400 text-sm mb-3">📝 Draft</div>
+            
+            <div class="bg-slate-800 rounded-xl p-4 mb-4">
+              <div class="text-white font-medium mb-1">Untuk: Aini ❤️</div>
+              <div class="text-slate-400 text-sm mb-3">Subjek: Yang ingin aku bilang...</div>
+              <div class="text-slate-300 text-sm italic border-l-2 border-blue-500 pl-3">
+                "Aini, ada banyak hal yang pengen aku bilang tapi gak pernah sempat. 
+                Maaf kalau aku sering ga peka. Maaf kalau aku sering bikin kamu nunggu.
+                Kamu adalah hal terbaik yang pernah terjadi di hidupku..."
+              </div>
+              <div class="text-slate-500 text-xs mt-3">Draft disimpan: 31 Des 2026</div>
+            </div>
+            
+            <!-- Old emails -->
+            <div class="text-slate-400 text-sm mb-3">📬 Inbox</div>
+            <div class="space-y-2">
+              <div class="bg-slate-800 rounded-xl p-3">
+                <div class="text-white text-sm">Promo Skyview Café</div>
+                <div class="text-slate-400 text-xs">Special couple dinner...</div>
+              </div>
+              <div class="bg-slate-800 rounded-xl p-3">
+                <div class="text-white text-sm">Reminder: Anniversary Aini</div>
+                <div class="text-slate-400 text-xs">27 Juli 2026 - Jangan lupa!</div>
+              </div>
+              <div class="bg-slate-800 rounded-xl p-3">
+                <div class="text-white text-sm">Reminder: 1 Tahun Bersama</div>
+                <div class="text-slate-400 text-xs">1 Januari 2027 - Anniversary resmi</div>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Question -->
+          ${!gameState.emailComplete ? `
+            <div class="p-4 bg-slate-800 border-t border-slate-700">
+              <p class="text-white text-sm mb-3 text-center">🔐 Masukkan kode anniversary (DDMMYYYY)</p>
+              <div class="flex gap-2 justify-center mb-3">
+                <input type="text" id="email-code" maxlength="8" placeholder="_ _ / _ _ / _ _ _ _"
+                  class="bg-slate-700 text-white text-center py-2 px-4 rounded-lg w-40 tracking-widest">
+              </div>
+              <button onclick="answerEmail()" class="w-full py-2 bg-blue-500 text-white rounded-lg font-medium">
+                Verifikasi
+              </button>
+              <p class="text-slate-500 text-xs text-center mt-2">💡 Petunjuk: 01012026</p>
+            </div>
+          ` : `
+            <div class="p-4 bg-green-900/30 border-t border-green-800">
+              <p class="text-green-400 text-sm text-center">✓ Gallery sekarang bisa dibuka</p>
+            </div>
+          `}
+        </div>
+      `;
+    }
+    
+    function answerEmail() {
+      const code = document.getElementById('email-code').value;
+      if (code === '01012026') {
+        gameState.emailComplete = true;
+        showTransition('1 Januari 2026... hari pertama kita jadian. Sudah 1 tahun...', renderHomeScreen);
+        saveGame();
+      } else {
+        showTransition('Kode salah... ingat tanggal kapan kita mulai?', renderEmail, 1500);
+      }
+    }
+    
+    function renderGallery() {
+      gameState.currentScene = 'gallery';
+      const content = document.getElementById('screen-content');
+      
+      const photos = [
+        { emoji: '🌅', caption: 'First date - Skyview Café', memory: 'Sore itu langitnya indah banget...' },
+        { emoji: '🤳', caption: 'Selfie random', memory: 'Kamu selalu bilang aku ga fotogenik' },
+        { emoji: '😢', caption: 'Setelah first fight', memory: 'Tapi kita selalu baikan...' },
+        { emoji: '😄', caption: 'Aini tertawa', memory: 'Ketawa kamu... aku kangen...' },
+        { emoji: '🎂', caption: 'Ultah Aini', memory: '27 Juli, surprise kecil di cafe' },
+        { emoji: '❤️', caption: 'Anniversary', memory: '1 Januari, setahun bersama' },
+      ];
+      
+      content.innerHTML = `
+        <div class="w-full h-full bg-slate-900 flex flex-col fade-in">
+          <!-- Header -->
+          <div class="bg-slate-800 px-4 py-3 flex items-center gap-3 pt-10">
+            <button onclick="renderHomeScreen()" class="text-blue-400">← Kembali</button>
+            <span class="text-white font-medium flex-1 text-center">🖼️ Gallery</span>
+          </div>
+          
+          <div class="flex-1 overflow-auto p-4">
+            <div class="text-slate-400 text-sm mb-3">📸 Momen Bersama</div>
+            
+            <div class="grid grid-cols-2 gap-3">
+              ${photos.map((p, i) => `
+                <div onclick="showPhoto(${i})" class="bg-slate-800 rounded-xl p-4 aspect-square flex flex-col items-center justify-center cursor-pointer hover:ring-2 hover:ring-blue-500 transition-all slide-up" style="animation-delay: ${i * 0.1}s;">
+                  <div class="text-4xl mb-2">${p.emoji}</div>
+                  <div class="text-white text-xs text-center">${p.caption}</div>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+          
+          <!-- Question -->
+          ${!gameState.galleryComplete ? `
+            <div class="p-4 bg-slate-800 border-t border-slate-700">
+              <p class="text-white text-sm mb-3 text-center">📍 Di mana first date kalian?</p>
+              <div class="grid grid-cols-2 gap-2">
+                ${['Skyview Café', 'Taman Kota', 'Mall Central', 'Pantai Sunset'].map(loc => `
+                  <button onclick="answerGallery('${loc}')" 
+                    class="py-2 px-4 rounded-lg bg-slate-700 text-white text-sm hover:bg-blue-500 transition-all">
+                    ${loc}
+                  </button>
+                `).join('')}
+              </div>
+            </div>
+          ` : `
+            <div class="p-4 bg-green-900/30 border-t border-green-800">
+              <p class="text-green-400 text-sm text-center">✓ Voice Note sekarang bisa dibuka</p>
+            </div>
+          `}
+        </div>
+      `;
+    }
+    
+    function showPhoto(index) {
+      const photos = [
+        { emoji: '🌅', caption: 'First date - Skyview Café', memory: 'Sore itu langitnya indah banget... kamu pesan cappuccino, aku americano.' },
+        { emoji: '🤳', caption: 'Selfie random', memory: 'Kamu selalu bilang aku ga fotogenik, tapi tetap minta foto bareng.' },
+        { emoji: '😢', caption: 'Setelah first fight', memory: 'Tapi kita selalu baikan... waktu itu kamu yang minta maaf duluan.' },
+        { emoji: '😄', caption: 'Aini tertawa', memory: 'Ketawa kamu... lepas banget. Aku kangen suara itu.' },
+        { emoji: '🎂', caption: 'Ultah Aini', memory: '27 Juli, aku surprise kamu di Skyview. Kamu nangis seneng.' },
+        { emoji: '❤️', caption: 'Anniversary', memory: '1 Januari, setahun bersama. Kamu bilang ini baru awal.' },
+      ];
+      
+      const p = photos[index];
+      showTransition(p.memory, renderGallery, 2500);
+    }
+    
+    function answerGallery(answer) {
+      if (answer === 'Skyview Café') {
+        gameState.galleryComplete = true;
+        showTransition('Skyview Café... sunset view nya cantik banget waktu itu...', renderHomeScreen);
+        saveGame();
+      } else {
+        showTransition('Bukan di sana... coba lihat foto lagi...', renderGallery, 1500);
+      }
+    }
+    
+    function renderVoiceNote() {
+      gameState.currentScene = 'voicenote';
+      const content = document.getElementById('screen-content');
+      
+      const voiceNotes = [
+        { from: 'Aini', duration: '0:15', preview: '"Sayang, nanti kita ngedate ke Skyview yaa..."', date: '15 Sep' },
+        { from: 'Aini', duration: '0:08', preview: '"Aku kangen kamu..."', date: '20 Nov' },
+        { from: 'Aini', duration: '0:22', preview: '"Happy anniversary sayang... I love you..."', date: '1 Jan' },
+        { from: 'Aini', duration: '0:05', preview: '"Maaf ya..."', date: '25 Dec' },
+      ];
+      
+      content.innerHTML = `
+        <div class="w-full h-full bg-slate-900 flex flex-col fade-in">
+          <!-- Header -->
+          <div class="bg-slate-800 px-4 py-3 flex items-center gap-3 pt-10">
+            <button onclick="renderHomeScreen()" class="text-blue-400">← Kembali</button>
+            <span class="text-white font-medium flex-1 text-center">🎤 Voice Note</span>
+          </div>
+          
+          <div class="flex-1 overflow-auto p-4">
+            <div class="text-slate-400 text-sm mb-3">🎧 Voice Messages</div>
+            
+            <div class="space-y-3">
+              ${voiceNotes.map((vn, i) => `
+                <div onclick="playVoiceNote(${i})" class="bg-slate-800 rounded-xl p-4 cursor-pointer hover:bg-slate-700 transition-all slide-up" style="animation-delay: ${i * 0.1}s;">
+                  <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-full bg-pink-500/20 flex items-center justify-center">
+                      <span class="text-pink-400">▶</span>
+                    </div>
+                    <div class="flex-1">
+                      <div class="text-white font-medium text-sm">${vn.from}</div>
+                      <div class="text-slate-400 text-xs">${vn.preview}</div>
+                    </div>
+                    <div class="text-right">
+                      <div class="text-slate-400 text-xs">${vn.duration}</div>
+                      <div class="text-slate-500 text-xs">${vn.date}</div>
+                    </div>
+                  </div>
+                  <!-- Waveform -->
+                  <div class="flex items-center gap-0.5 mt-3 h-6">
+                    ${Array(40).fill().map(() => `
+                      <div class="w-1 bg-pink-500/50 rounded" style="height: ${Math.random() * 100}%"></div>
+                    `).join('')}
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+          
+          ${!gameState.voiceNoteComplete ? `
+            <div class="p-4">
+              <button onclick="completeVoiceNote()" class="w-full py-3 bg-blue-500 text-white rounded-xl font-medium">
+                Dengarkan Semua
+              </button>
+            </div>
+          ` : `
+            <div class="p-4 bg-green-900/30 border-t border-green-800">
+              <p class="text-green-400 text-sm text-center">✓ Chat sekarang bisa dibuka</p>
+            </div>
+          `}
+        </div>
+      `;
+    }
+    
+    function playVoiceNote(index) {
+      const messages = [
+        'Suaranya... masih sama seperti dulu...',
+        'Dia selalu bilang kangen lewat voice note...',
+        'Anniversary... seharusnya aku lebih menghargai...',
+        'Maaf... kata yang seharusnya aku yang bilang...'
+      ];
+      showTransition(messages[index], renderVoiceNote, 2000);
+    }
+    
+    function completeVoiceNote() {
+      gameState.voiceNoteComplete = true;
+      showTransition('Chat... akhirnya bisa dibuka. Apa yang akan aku temukan di sana?', renderHomeScreen);
+      saveGame();
+    }
+    
+    function renderChatList() {
+      gameState.currentScene = 'chatlist';
+      const content = document.getElementById('screen-content');
+      
+      const chats = [
+        { name: 'Mama ❤️', preview: 'Kamu baik-baik aja nak?', unread: 3, time: '2h' },
+        { name: 'Ayah', preview: 'Pulang dulu istirahat ya', unread: 2, time: '5h' },
+        { name: 'Teman Kantor', preview: 'Bro, lu kemana aja?', unread: 5, time: '1d' },
+        { name: 'Aini 💕', preview: 'Pesan ini telah dihapus', unread: 1, time: '3mo', special: true },
+      ];
+      
+      content.innerHTML = `
+        <div class="w-full h-full bg-slate-900 flex flex-col fade-in">
+          <!-- Header -->
+          <div class="bg-slate-800 px-4 py-3 flex items-center gap-3 pt-10">
+            <button onclick="renderHomeScreen()" class="text-blue-400">← Kembali</button>
+            <span class="text-white font-medium flex-1 text-center">💬 Chat</span>
+          </div>
+          
+          <div class="flex-1 overflow-auto">
+            ${chats.map((chat, i) => `
+              <div onclick="${chat.special ? 'renderAiniChat()' : `showParentChat('${chat.name}')`}" 
+                class="flex items-center gap-3 p-4 border-b border-slate-800 cursor-pointer hover:bg-slate-800 transition-all slide-up ${chat.special ? 'bg-pink-500/5' : ''}"
+                style="animation-delay: ${i * 0.1}s;">
+                <div class="w-12 h-12 rounded-full ${chat.special ? 'bg-pink-500/20' : 'bg-slate-700'} flex items-center justify-center text-xl">
+                  ${chat.special ? '💕' : chat.name.includes('Mama') ? '👩' : chat.name.includes('Ayah') ? '👨' : '👤'}
+                </div>
+                <div class="flex-1">
+                  <div class="flex justify-between items-center">
+                    <span class="text-white font-medium">${chat.name}</span>
+                    <span class="text-slate-400 text-xs">${chat.time}</span>
+                  </div>
+                  <p class="text-slate-400 text-sm truncate ${chat.special ? 'italic' : ''}">${chat.preview}</p>
+                </div>
+                ${chat.unread ? `
+                  <div class="w-5 h-5 rounded-full ${chat.special ? 'bg-pink-500' : 'bg-blue-500'} text-white text-xs flex items-center justify-center">
+                    ${chat.unread}
+                  </div>
+                ` : ''}
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      `;
+    }
+    
+    function showParentChat(name) {
+      let messages = [];
+      if (name.includes('Mama')) {
+        messages = [
+          { from: 'other', text: 'Nak, kamu di mana?' },
+          { from: 'other', text: 'Mama khawatir...' },
+          { from: 'other', text: 'Kamu baik-baik aja kan?' },
+          { from: 'other', text: 'Kalau butuh apa-apa bilang ya' },
+          { from: 'other', text: 'Mama sayang kamu ❤️' },
+        ];
+      } else if (name.includes('Ayah')) {
+        messages = [
+          { from: 'other', text: 'Gimana kabarmu?' },
+          { from: 'other', text: 'Jangan lupa makan' },
+          { from: 'other', text: 'Pulang dulu istirahat ya' },
+        ];
+      } else {
+        messages = [
+          { from: 'other', text: 'Bro lu kemana aja?' },
+          { from: 'other', text: 'Chat ga dibales' },
+          { from: 'other', text: 'Gua doain lu baik2 aja' },
+        ];
+      }
+      
+      showSimpleChat(name, messages);
+    }
+    
+    function showSimpleChat(name, messages) {
+      const content = document.getElementById('screen-content');
+      
+      content.innerHTML = `
+        <div class="w-full h-full bg-slate-900 flex flex-col fade-in">
+          <!-- Header -->
+          <div class="bg-slate-800 px-4 py-3 flex items-center gap-3 pt-10">
+            <button onclick="renderChatList()" class="text-blue-400">← Kembali</button>
+            <span class="text-white font-medium flex-1 text-center">${name}</span>
+          </div>
+          
+          <div class="flex-1 overflow-auto p-4 space-y-3">
+            ${messages.map((m, i) => `
+              <div class="flex ${m.from === 'me' ? 'justify-end' : 'justify-start'} slide-up" style="animation-delay: ${i * 0.1}s;">
+                <div class="chat-bubble ${m.from === 'me' ? 'bg-blue-500 text-white' : 'bg-slate-700 text-white'} rounded-2xl px-4 py-2">
+                  <p class="text-sm">${m.text}</p>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+          
+          <div class="p-4 bg-slate-800">
+            <div class="flex gap-2">
+              <input type="text" placeholder="Ketik pesan..." disabled
+                class="flex-1 bg-slate-700 text-white rounded-full px-4 py-2 text-sm opacity-50">
+              <button disabled class="w-10 h-10 bg-slate-600 rounded-full flex items-center justify-center opacity-50">
+                <span>📤</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+    
+    function renderAiniChat() {
+      gameState.currentScene = 'ainichat';
+      const content = document.getElementById('screen-content');
+      
+      const allMessages = [...chatHistory.sweet, ...chatHistory.bitter, ...chatHistory.final];
+      
+      content.innerHTML = `
+        <div class="w-full h-full bg-slate-900 flex flex-col fade-in">
+          <!-- Header -->
+          <div class="bg-gradient-to-r from-pink-900/50 to-slate-800 px-4 py-3 flex items-center gap-3 pt-10">
+            <button onclick="renderChatList()" class="text-blue-400">← Kembali</button>
+            <div class="w-8 h-8 rounded-full bg-pink-500/30 flex items-center justify-center">💕</div>
+            <div class="flex-1">
+              <span class="text-white font-medium">Aini 💕</span>
+              <p class="text-slate-400 text-xs">last seen 3 months ago</p>
+            </div>
+          </div>
+          
+          <div id="chat-scroll" class="flex-1 overflow-auto p-4 space-y-3">
+            <!-- Sweet Phase -->
+            <div class="text-center text-slate-500 text-xs my-4">--- Masa-masa Indah ---</div>
+            ${chatHistory.sweet.map((m, i) => `
+              <div class="flex ${m.from === 'me' ? 'justify-end' : 'justify-start'} slide-up" style="animation-delay: ${i * 0.05}s;">
+                <div class="chat-bubble ${m.from === 'me' ? 'bg-blue-500 text-white' : 'bg-pink-500/20 text-white'} rounded-2xl px-4 py-2">
+                  <p class="text-sm">${m.text}</p>
+                  <p class="text-xs opacity-50 mt-1">${m.time}</p>
+                </div>
+              </div>
+            `).join('')}
+            
+            <!-- Bitter Phase -->
+            <div class="text-center text-slate-500 text-xs my-4">--- 2 bulan kemudian ---</div>
+            ${chatHistory.bitter.map((m, i) => `
+              <div class="flex ${m.from === 'me' ? 'justify-end' : 'justify-start'} slide-up" style="animation-delay: ${(i + 10) * 0.05}s;">
+                <div class="chat-bubble ${m.from === 'me' ? 'bg-blue-500/50 text-white' : 'bg-slate-700 text-white'} rounded-2xl px-4 py-2">
+                  <p class="text-sm">${m.text}</p>
+                  <p class="text-xs opacity-50 mt-1">${m.time}</p>
+                </div>
+              </div>
+            `).join('')}
+            
+            <!-- Final Phase -->
+            <div class="text-center text-slate-500 text-xs my-4">--- Pesan terakhir ---</div>
+            ${chatHistory.final.map((m, i) => `
+              ${m.from === 'deleted' ? `
+                <div onclick="clickDeletedMessage()" class="flex justify-start slide-up cursor-pointer" style="animation-delay: ${(i + 20) * 0.05}s;">
+                  <div class="chat-bubble deleted-msg bg-slate-800 text-slate-400 rounded-2xl px-4 py-2 italic border border-dashed border-slate-600 hover:border-pink-500 transition-all">
+                    <p class="text-sm">🚫 ${m.text}</p>
+                    <p class="text-xs opacity-50 mt-1">${m.time}</p>
+                    <p class="text-xs text-pink-400 mt-1">Tap untuk melihat...</p>
+                  </div>
+                </div>
+              ` : `
+                <div class="flex ${m.from === 'me' ? 'justify-end' : 'justify-start'} slide-up" style="animation-delay: ${(i + 20) * 0.05}s;">
+                  <div class="chat-bubble ${m.from === 'me' ? 'bg-blue-500/30 text-white' : 'bg-slate-700 text-white'} rounded-2xl px-4 py-2">
+                    <p class="text-sm">${m.text}</p>
+                    <p class="text-xs opacity-50 mt-1">${m.time}</p>
+                  </div>
+                </div>
+              `}
+            `).join('')}
+          </div>
+          
+          <div class="p-4 bg-slate-800">
+            <div class="text-center text-slate-500 text-sm">
+              Scroll ke bawah untuk melihat semua pesan...
+            </div>
+          </div>
+        </div>
+      `;
+      
+      // Auto scroll to bottom
+      setTimeout(() => {
+        const scroll = document.getElementById('chat-scroll');
+        if (scroll) scroll.scrollTop = scroll.scrollHeight;
+      }, 500);
+    }
+    
+    function clickDeletedMessage() {
+      if (!gameState.inRelapse) {
+        startRelapse();
+      }
+    }
+    
+    function startRelapse() {
+      gameState.inRelapse = true;
+      gameState.relapseIndex = 0;
+      
+      // Glitch effect
+      const content = document.getElementById('screen-content');
+      content.classList.add('glitch-effect');
+      
+      setTimeout(() => {
+        content.classList.remove('glitch-effect');
+        showTransition('Waktu seperti mundur... kembali ke momen-momen itu...', () => {
+          renderRelapseScenario();
+        }, 2500);
+      }, 500);
+    }
+    
+    function renderRelapseScenario() {
+      const content = document.getElementById('screen-content');
+      const scenario = relapseScenarios[gameState.relapseIndex];
+      
+      if (!scenario) {
+        endRelapse();
+        return;
+      }
+      
+      content.innerHTML = `
+        <div class="w-full h-full bg-gradient-to-b from-amber-950/30 via-slate-900 to-slate-950 flex flex-col fade-in memory-overlay">
+          <!-- Time indicator -->
+          <div class="bg-amber-900/30 px-4 py-2 text-center pt-10">
+            <span class="text-amber-400 text-sm">⏳ Kenangan ${gameState.relapseIndex + 1}/${relapseScenarios.length}</span>
+          </div>
+          
+          <!-- Context -->
+          <div class="p-4">
+            <p class="text-amber-200/70 text-sm italic text-center">${scenario.context}</p>
+          </div>
+          
+          <!-- Chat simulation -->
+          <div class="flex-1 overflow-auto p-4">
+            <div class="flex justify-start mb-6 slide-up">
+              <div class="chat-bubble bg-pink-500/20 text-white rounded-2xl px-4 py-3">
+                <p class="text-sm">${scenario.message}</p>
+                <p class="text-xs opacity-50 mt-1">Aini</p>
+              </div>
+            </div>
+            
+            <!-- Choices -->
+            <div class="space-y-3">
+              <p class="text-slate-400 text-sm text-center mb-4">Bagaimana kamu akan merespon?</p>
+              ${scenario.choices.map((choice, i) => `
+                <button onclick="makeChoice(${i}, '${choice.type}')" 
+                  class="choice-btn w-full text-left px-4 py-3 rounded-xl bg-slate-800/80 text-white text-sm border border-slate-700 hover:border-blue-500 transition-all slide-up"
+                  style="animation-delay: ${i * 0.1}s;">
+                  ${choice.text}
+                </button>
+              `).join('')}
+            </div>
+          </div>
+          
+          <!-- Progress -->
+          <div class="p-4 bg-slate-800/50">
+            <div class="flex gap-1 justify-center">
+              ${relapseScenarios.map((_, i) => `
+                <div class="w-8 h-1 rounded ${i < gameState.relapseIndex ? 'bg-blue-500' : i === gameState.relapseIndex ? 'bg-amber-500' : 'bg-slate-600'}"></div>
+              `).join('')}
+            </div>
+          </div>
+        </div>
+      `;
+    }
+    
+    function makeChoice(choiceIndex, type) {
+      const scenario = relapseScenarios[gameState.relapseIndex];
+      const choice = scenario.choices[choiceIndex];
+      
+      if (type === 'good') {
+        gameState.goodChoices++;
+      } else {
+        gameState.badChoices++;
+      }
+      
+      gameState.choicesMade.push({
+        scenario: gameState.relapseIndex,
+        choice: choiceIndex,
+        type: type
+      });
+      
+      const response = type === 'good' 
+        ? 'Kamu memilih untuk mendengarkan dan peduli...'
+        : 'Kamu memilih untuk mengabaikan perasaannya...';
+      
+      showTransition(response, () => {
+        gameState.relapseIndex++;
+        if (gameState.relapseIndex < relapseScenarios.length) {
+          renderRelapseScenario();
+        } else {
+          endRelapse();
+        }
+      }, 1500);
+      
+      saveGame();
+    }
+    
+    function endRelapse() {
+      gameState.inRelapse = false;
+      
+      // Glitch back to present
+      const content = document.getElementById('screen-content');
+      content.classList.add('glitch-effect');
+      
+      setTimeout(() => {
+        content.classList.remove('glitch-effect');
+        showTransition('Kembali ke masa kini...', () => {
+          renderFinalChat();
+        }, 2000);
+      }, 500);
+    }
+    
+    function renderFinalChat() {
+      const content = document.getElementById('screen-content');
+      
+      content.innerHTML = `
+        <div class="w-full h-full bg-slate-900 flex flex-col fade-in">
+          <!-- Header -->
+          <div class="bg-gradient-to-r from-pink-900/50 to-slate-800 px-4 py-3 flex items-center gap-3 pt-10">
+            <button onclick="renderChatList()" class="text-blue-400">← Kembali</button>
+            <div class="w-8 h-8 rounded-full bg-pink-500/30 flex items-center justify-center">💕</div>
+            <div class="flex-1">
+              <span class="text-white font-medium">Aini 💕</span>
+              <p class="text-slate-400 text-xs">Sekarang</p>
+            </div>
+          </div>
+          
+          <div class="flex-1 overflow-auto p-4 flex flex-col justify-center items-center">
+            <div class="text-center slide-up">
+              <div class="text-6xl mb-4">💌</div>
+              <p class="text-white text-lg mb-2">Kirim pesan ke Aini?</p>
+              <p class="text-slate-400 text-sm mb-6">Setelah semua yang kamu ingat...</p>
+              
+              <div class="bg-slate-800 rounded-xl p-4 mb-6 max-w-xs">
+                <p class="text-slate-300 text-sm">Pilihan baik: ${gameState.goodChoices}</p>
+                <p class="text-slate-300 text-sm">Pilihan buruk: ${gameState.badChoices}</p>
+              </div>
+              
+              <button onclick="sendFinalMessage()" 
+                class="bg-pink-500 text-white px-8 py-3 rounded-full font-medium hover:bg-pink-600 transition-all pulse-anim">
+                Kirim Pesan 💕
+              </button>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+    
+    function sendFinalMessage() {
+      const isGoodEnding = gameState.goodChoices > gameState.badChoices;
+      gameState.ending = isGoodEnding ? 'good' : 'bad';
+      saveGame();
+      
+      if (isGoodEnding) {
+        renderGoodEnding();
+      } else {
+        renderBadEnding();
+      }
+    }
+    
+    function renderBadEnding() {
+      const content = document.getElementById('screen-content');
+      
+      content.innerHTML = `
+        <div class="w-full h-full bg-slate-900 flex flex-col fade-in">
+          <!-- Header -->
+          <div class="bg-slate-800 px-4 py-3 pt-10">
+            <div class="flex items-center gap-3">
+              <div class="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center">💔</div>
+              <span class="text-white">Aini</span>
+            </div>
+          </div>
+          
+          <div class="flex-1 p-4">
+            <!-- Sent message -->
+            <div class="flex justify-end mb-4 slide-up">
+              <div class="chat-bubble bg-blue-500 text-white rounded-2xl px-4 py-2">
+                <p class="text-sm">Aini... maaf atas semuanya. Aku sadar aku salah.</p>
+                <p class="text-xs opacity-50 mt-1">Terkirim</p>
+              </div>
+            </div>
+            
+            <!-- Typing indicator -->
+            <div class="flex justify-start mb-4 slide-up" style="animation-delay: 1s;">
+              <div class="chat-bubble bg-slate-700 text-white rounded-2xl px-4 py-2">
+                <div class="flex gap-1">
+                  <span class="w-2 h-2 bg-slate-400 rounded-full animate-bounce"></span>
+                  <span class="w-2 h-2 bg-slate-400 rounded-full animate-bounce" style="animation-delay: 0.1s;"></span>
+                  <span class="w-2 h-2 bg-slate-400 rounded-full animate-bounce" style="animation-delay: 0.2s;"></span>
+                </div>
+              </div>
+            </div>
+            
+            <!-- Reply -->
+            <div class="flex justify-start mb-4 slide-up" style="animation-delay: 2.5s;">
+              <div class="chat-bubble bg-slate-700 text-white rounded-2xl px-4 py-2">
+                <p class="text-sm">Udah cukup.</p>
+                <p class="text-sm">Jangan hubungi aku lagi.</p>
+                <p class="text-xs opacity-50 mt-1">Dibaca</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+      
+      setTimeout(() => {
+        showFinalText('Kadang satu kata cukup untuk menghancurkan segalanya.', true);
+      }, 4000);
+    }
+    
+    function renderGoodEnding() {
+      const content = document.getElementById('screen-content');
+      
+      content.innerHTML = `
+        <div class="w-full h-full bg-slate-900 flex flex-col fade-in">
+          <!-- Header -->
+          <div class="bg-gradient-to-r from-pink-900/50 to-slate-800 px-4 py-3 pt-10">
+            <div class="flex items-center gap-3">
+              <div class="w-8 h-8 rounded-full bg-pink-500/30 flex items-center justify-center">💕</div>
+              <span class="text-white">Aini 💕</span>
+            </div>
+          </div>
+          
+          <div class="flex-1 p-4">
+            <!-- Sent message -->
+            <div class="flex justify-end mb-4 slide-up">
+              <div class="chat-bubble bg-blue-500 text-white rounded-2xl px-4 py-2">
+                <p class="text-sm">Aini... aku mau minta maaf. Dan aku mau berubah. Beneran.</p>
+                <p class="text-xs opacity-50 mt-1">Terkirim</p>
+              </div>
+            </div>
+            
+            <!-- Typing indicator -->
+            <div class="flex justify-start mb-4 slide-up" style="animation-delay: 1s;">
+              <div class="chat-bubble bg-pink-500/20 text-white rounded-2xl px-4 py-2">
+                <div class="flex gap-1">
+                  <span class="w-2 h-2 bg-pink-400 rounded-full animate-bounce"></span>
+                  <span class="w-2 h-2 bg-pink-400 rounded-full animate-bounce" style="animation-delay: 0.1s;"></span>
+                  <span class="w-2 h-2 bg-pink-400 rounded-full animate-bounce" style="animation-delay: 0.2s;"></span>
+                </div>
+              </div>
+            </div>
+            
+            <!-- Reply -->
+            <div class="flex justify-start slide-up" style="animation-delay: 2.5s;">
+              <div class="chat-bubble bg-pink-500/20 text-white rounded-2xl px-4 py-2">
+                <p class="text-sm">Aku tunggu kata-kata itu...</p>
+                <p class="text-sm">Ayo kita coba lagi. Dari awal. 💕</p>
+                <p class="text-xs opacity-50 mt-1">Dibaca</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+      
+      setTimeout(() => {
+        showTransition('Waktu berlalu... dan semuanya berubah menjadi lebih baik...', () => {
+          renderLockScreen();
+        }, 3000);
+      }, 4000);
+    }
+    
+    function renderGoodEndingHome() {
+      const content = document.getElementById('screen-content');
+      
+      const apps = [
+        { id: 'gallery', icon: '🖼️', name: 'Gallery' },
+        { id: 'voicenote', icon: '🎤', name: 'Voice Note' },
+        { id: 'calendar', icon: '📅', name: 'Calendar' },
+        { id: 'chat', icon: '💬', name: 'Chat' },
+      ];
+      
+      content.innerHTML = `
+        <div class="w-full h-full bg-gradient-to-b from-pink-950/30 via-slate-900 to-slate-950 p-6 pt-10 fade-in">
+          <!-- Status Bar -->
+          <div class="flex justify-between items-center mb-8">
+            <span class="text-white text-sm">08:30</span>
+            <span class="text-pink-400 text-sm">❤️ 1 Jan 2030</span>
+          </div>
+          
+          <!-- Happy notification -->
+          <div class="bg-pink-500/20 rounded-2xl p-4 mb-8 slide-up">
+            <div class="flex items-center gap-3">
+              <div class="text-3xl">💒</div>
+              <div>
+                <div class="text-white font-medium">Happy 4th Anniversary!</div>
+                <div class="text-pink-300 text-sm">Pernikahan kita ❤️</div>
+              </div>
+            </div>
+          </div>
+          
+          <!-- App Grid -->
+          <div class="grid grid-cols-3 gap-6">
+            ${apps.map((app, i) => `
+              <div onclick="showGoodEndingApp('${app.id}')" class="flex flex-col items-center gap-2 cursor-pointer slide-up" style="animation-delay: ${i * 0.1}s;">
+                <div class="w-14 h-14 rounded-2xl bg-pink-500/20 flex items-center justify-center text-2xl shadow-lg">
+                  ${app.icon}
+                </div>
+                <span class="text-white text-xs">${app.name}</span>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      `;
+    }
+    
+    function showGoodEndingApp(appId) {
+      let message = '';
+      
+      switch(appId) {
+        case 'gallery':
+          message = 'Foto pernikahan kita... kamu cantik banget waktu itu... dan sekarang juga 💕';
+          break;
+        case 'voicenote':
+          message = '"Papa nanti jagain ya..." — Suara Aini, sambil mengelus perutnya yang mulai membesar...';
+          break;
+        case 'calendar':
+          message = 'Anniversary • Check-up bayi • Jadwal kontrol dokter... Hidup kita begitu penuh dan bahagia...';
+          break;
+        case 'chat':
+          showIncomingCall();
+          return;
+      }
+      
+      showTransition(message, renderGoodEndingHome, 3000);
+    }
+    
+    function showIncomingCall() {
+      const content = document.getElementById('screen-content');
+      
+      content.innerHTML = `
+        <div class="w-full h-full bg-gradient-to-b from-pink-600 via-pink-700 to-pink-900 flex flex-col items-center justify-center fade-in">
+          <!-- Caller info -->
+          <div class="text-center mb-12 slide-up">
+            <div class="w-24 h-24 rounded-full bg-white/20 flex items-center justify-center text-5xl mb-4 mx-auto">
+              💕
+            </div>
+            <div class="text-white text-2xl font-medium">Aini 💕</div>
+            <div class="text-pink-200 text-sm">Incoming call...</div>
+          </div>
+          
+          <!-- Call actions -->
+          <div class="flex gap-8 slide-up" style="animation-delay: 0.3s;">
+            <button onclick="declineCall()" class="w-16 h-16 rounded-full bg-red-500 flex items-center justify-center text-2xl shadow-lg hover:bg-red-600 transition-all">
+              📞
+            </button>
+            <button onclick="answerCall()" class="w-16 h-16 rounded-full bg-green-500 flex items-center justify-center text-2xl shadow-lg hover:bg-green-600 transition-all pulse-anim">
+              📞
+            </button>
+          </div>
+          
+          <!-- Hint -->
+          <div class="absolute bottom-12 text-pink-200 text-sm slide-up" style="animation-delay: 0.5s;">
+            Angkat teleponnya...
+          </div>
+        </div>
+      `;
+    }
+    
+    function declineCall() {
+      showTransition('Kamu memilih untuk tidak mengangkat... tapi dia tetap akan menelepon lagi 💕', showIncomingCall, 2000);
+    }
+    
+    function answerCall() {
+      const content = document.getElementById('screen-content');
+      
+      content.innerHTML = `
+        <div class="w-full h-full bg-gradient-to-b from-pink-600 via-pink-700 to-pink-900 flex flex-col items-center justify-center fade-in">
+          <div class="text-center">
+            <div class="w-20 h-20 rounded-full bg-white/20 flex items-center justify-center text-4xl mb-4 mx-auto">
+              💕
+            </div>
+            <div class="text-white text-xl font-medium mb-2">Aini 💕</div>
+            <div class="text-pink-200 text-sm mb-8">00:05</div>
+            
+            <div class="bg-white/10 rounded-2xl p-6 max-w-xs mx-4 slide-up">
+              <p class="text-white text-lg italic">"Sayang... bayi nya mau keluar..."</p>
+              <p class="text-white text-lg italic mt-2">"Cepetan ke rumah sakit ya!"</p>
+            </div>
+          </div>
+        </div>
+      `;
+      
+      setTimeout(() => {
+        showFinalText('Kadang satu kata cukup untuk mengubah masa depan.', false);
+      }, 4000);
+    }
+    
+    function showFinalText(text, isBad) {
+      const content = document.getElementById('screen-content');
+      
+      content.innerHTML = `
+        <div class="w-full h-full ${isBad ? 'bg-black' : 'bg-white'} flex flex-col items-center justify-center fade-in p-8">
+          <p class="${isBad ? 'text-slate-400' : 'text-slate-600'} text-center text-lg italic mb-8 slide-up">
+            "${text}"
+          </p>
+          
+          <div class="text-center slide-up" style="animation-delay: 0.5s;">
+            <div class="text-4xl mb-4">${isBad ? '💔' : '💕'}</div>
+            <p class="${isBad ? 'text-slate-500' : 'text-slate-500'} text-sm">— THE END —</p>
+          </div>
+          
+          <button onclick="restartGame()" class="mt-12 px-6 py-3 ${isBad ? 'bg-slate-800 text-white' : 'bg-pink-500 text-white'} rounded-full font-medium slide-up" style="animation-delay: 1s;">
+            Main Lagi
+          </button>
+        </div>
+      `;
+    }
+    
+    function restartGame() {
+      gameState = {
+        currentScene: 'boot',
+        unlockedApps: ['settings'],
+        choicesMade: [],
+        goodChoices: 0,
+        badChoices: 0,
+        settingsComplete: false,
+        calendarComplete: false,
+        emailComplete: false,
+        galleryComplete: false,
+        voiceNoteComplete: false,
+        inRelapse: false,
+        relapseIndex: 0,
+        ending: null
+      };
+      currentPasscode = '';
+      currentSaveData = null;
+      renderBootScreen();
+      saveGame();
+    }
+    
+    // ==================== SAVE/LOAD ====================
+    
+    async function saveGame() {
+      if (!window.dataSdk) return;
+      
+      const saveData = {
+        save_id: 'main_save',
+        current_scene: gameState.currentScene,
+        unlocked_apps: JSON.stringify(gameState.unlockedApps),
+        choices_made: JSON.stringify(gameState.choicesMade),
+        good_choices: gameState.goodChoices,
+        bad_choices: gameState.badChoices,
+        completed: gameState.ending !== null,
+        ending: gameState.ending || '',
+        created_at: new Date().toISOString()
+      };
+      
+      // Add progress flags
+      saveData.settings_complete = gameState.settingsComplete;
+      saveData.calendar_complete = gameState.calendarComplete;
+      saveData.email_complete = gameState.emailComplete;
+      saveData.gallery_complete = gameState.galleryComplete;
+      saveData.voicenote_complete = gameState.voiceNoteComplete;
+      
+      if (currentSaveData) {
+        await window.dataSdk.update({ ...currentSaveData, ...saveData });
+      } else {
+        await window.dataSdk.create(saveData);
+      }
+    }
+    
+    function loadGame(data) {
+      if (!data || data.length === 0) return false;
+      
+      const save = data.find(d => d.save_id === 'main_save');
+      if (!save) return false;
+      
+      currentSaveData = save;
+      
+      gameState.currentScene = save.current_scene || 'boot';
+      gameState.unlockedApps = JSON.parse(save.unlocked_apps || '["settings"]');
+      gameState.choicesMade = JSON.parse(save.choices_made || '[]');
+      gameState.goodChoices = save.good_choices || 0;
+      gameState.badChoices = save.bad_choices || 0;
+      gameState.ending = save.ending || null;
+      
+      // Load progress flags
+      gameState.settingsComplete = save.settings_complete || false;
+      gameState.calendarComplete = save.calendar_complete || false;
+      gameState.emailComplete = save.email_complete || false;
+      gameState.galleryComplete = save.gallery_complete || false;
+      gameState.voiceNoteComplete = save.voicenote_complete || false;
+      
+      return true;
+    }
+    
+    // ==================== SDK INITIALIZATION ====================
+    
+    const dataHandler = {
+      onDataChanged(data) {
+        if (data.length > 0 && !currentSaveData) {
+          if (loadGame(data)) {
+            // Resume game from saved state
+            switch(gameState.currentScene) {
+              case 'lockscreen': renderLockScreen(); break;
+              case 'home': renderHomeScreen(); break;
+              case 'settings': renderSettings(); break;
+              case 'calendar': renderCalendar(); break;
+              case 'email': renderEmail(); break;
+              case 'gallery': renderGallery(); break;
+              case 'voicenote': renderVoiceNote(); break;
+              case 'chatlist': renderChatList(); break;
+              case 'ainichat': renderAiniChat(); break;
+              default: renderBootScreen();
+            }
+          }
+        }
+        
+        if (data.length > 0) {
+          currentSaveData = data.find(d => d.save_id === 'main_save') || null;
+        }
+      }
+    };
+    
+    // Element SDK config
+    const elementHandler = {
+      defaultConfig: defaultConfig,
+      
+      async onConfigChange(config) {
+        // Update title if needed
+        document.title = config.game_title || defaultConfig.game_title;
+      },
+      
+      mapToCapabilities(config) {
+        return {
+          recolorables: [
+            {
+              get: () => config.primary_color || defaultConfig.primary_color,
+              set: (value) => window.elementSdk.setConfig({ primary_color: value })
+            },
+            {
+              get: () => config.accent_color || defaultConfig.accent_color,
+              set: (value) => window.elementSdk.setConfig({ accent_color: value })
+            },
+            {
+              get: () => config.text_color || defaultConfig.text_color,
+              set: (value) => window.elementSdk.setConfig({ text_color: value })
+            },
+            {
+              get: () => config.surface_color || defaultConfig.surface_color,
+              set: (value) => window.elementSdk.setConfig({ surface_color: value })
+            },
+            {
+              get: () => config.warm_color || defaultConfig.warm_color,
+              set: (value) => window.elementSdk.setConfig({ warm_color: value })
+            }
+          ],
+          borderables: [],
+          fontEditable: undefined,
+          fontSizeable: undefined
+        };
+      },
+      
+      mapToEditPanelValues(config) {
+        return new Map([
+          ['game_title', config.game_title || defaultConfig.game_title],
+          ['subtitle', config.subtitle || defaultConfig.subtitle]
+        ]);
+      }
+    };
+    
+    // Initialize
+    async function init() {
+      if (window.elementSdk) {
+        window.elementSdk.init(elementHandler);
+      }
+      
+      if (window.dataSdk) {
+        const result = await window.dataSdk.init(dataHandler);
+        if (!result.isOk) {
+          console.error('Failed to init data SDK');
+        }
+      }
+      
+      // Start game
+      renderBootScreen();
+    }
+    
+    init();
+  </script>
+ <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9d56e16413f7e9c9',t:'MTc3MjM1NDY3My4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script>
+<!-- 🎵 Background Music -->
+<audio id="bg-music" loop>
+  <source src="ambience.mp3" type="audio/mpeg">
+</audio>
+
+<!-- 🔊 Click Sound -->
+<audio id="click-sound">
+  <source src="click.mp3" type="audio/mpeg">
+</audio>
+
+<script>
+function startMusic() {
+  const music = document.getElementById('bg-music');
+  if (!music) return;
+  music.volume = 0.3;
+  music.play().catch(() => {});
+}
+
+document.addEventListener('click', startMusic, { once: true });
+
+function playClick() {
+  const click = document.getElementById('click-sound');
+  if (!click) return;
+  click.currentTime = 0;
+  click.volume = 0.4;
+  click.play();
+}
+
+document.addEventListener('click', function(e) {
+  if (e.target.tagName === 'BUTTON') {
+    playClick();
+  }
+});
+</script>
+
+</body>
+</html>
